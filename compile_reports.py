@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compile all LaTeX reports in subdirectories using lualatex."""
+"""Compile all LaTeX reports in subdirectories using lualatex (with latexmk)."""
 
 import subprocess
 import sys
@@ -26,10 +26,10 @@ def find_tex_files(root: Path) -> list[Path]:
     return sorted(tex_files)
 
 def compile_tex(tex_file: Path, timeout: int = 300) -> CompilationResult:
-    """Compile a .tex file using lualatex."""
+    """Compile a .tex file using lualatex (with latexmk)."""
     try:
         result = subprocess.run(
-            ["lualatex", "-interaction=nonstopmode", tex_file.name],
+            ["latexmk", "-lualatex", "-interaction=nonstopmode", "-file-line-error", "-shell-escape", tex_file.name],
             cwd=tex_file.parent,
             capture_output=True,
             text=True,
@@ -47,7 +47,7 @@ def compile_tex(tex_file: Path, timeout: int = 300) -> CompilationResult:
         return CompilationResult(
             tex_file=tex_file,
             success=False,
-            error="lualatex command not found. Please install lualatex."
+            error="latexmk command not found. Please install latexmk."
         )
     except subprocess.TimeoutExpired:
         return CompilationResult(
