@@ -21,9 +21,13 @@ jobs:
     - name: Compile main.tex
       run: latexmk -lualatex -interaction=nonstopmode -file-line-error -shell-escape main.tex
 
+    - name: Get date
+      id: date
+      run: echo "date=$(date +'%Y-%m-%dT%H-%M')" >> $GITHUB_OUTPUT
+
     - name: Upload main.pdf artifact
       uses: actions/upload-artifact@v7
       with:
-        name: main-report-pdf
+        name: main-report-${{ github.event.pull_request.user.login }}-${{ steps.date.outputs.date }}
         path: main.pdf
         if-no-files-found: error
