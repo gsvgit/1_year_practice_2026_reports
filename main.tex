@@ -2,9 +2,27 @@
 \usepackage{pdfpages}
 \usepackage[en-US]{datetime2}
 
+\usepackage{polyglossia}
+% Setup fonts.
+\usepackage{fontspec}
+\setmainfont{CMU Serif}
+\setsansfont{CMU Sans Serif}
+\setmonofont{CMU Typewriter Text}
+
+\usepackage{hyperref}
+
+\setdefaultlanguage{russian}
+
+
 \begin{document}
 Compiled: \DTMnow
+\tableofcontents
+
 \clearpage
-\includepdf[pages=-]{Example_Good/Example_Good_report.pdf}
-\includepdf[pages=-]{Ivan_Ivanov/Ivan_Ivanov_report.pdf}
+\includepdf[pages=-,
+    addtotoc={1, section, 1, {ФИО, Тема}, example_good}]
+{Example_Good/Example_Good_report.pdf}
+\includepdf[pages=-,
+    addtotoc={1, section, 1, {Иванов Иван Иванович, Убер-тема}, ivanov_ivan}]
+{Ivan_Ivanov/Ivan_Ivanov_report.pdf}
 \end{document}
