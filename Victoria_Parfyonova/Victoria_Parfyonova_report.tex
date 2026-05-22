@@ -58,26 +58,27 @@
 В ходе работы были изучены следующие материалы по данной теме:
 
 \begin{enumerate}
-    \item Image filtering using convolution in OpenCV (документация OpenCV)\footnote{Image filtering using convolution in OpenCV --- URL: \url{https://opencv.org/blog/image-filtering-using-convolution-in-opencv/} (дата обращения: 20.05.2026).}.
-    \item Convolutions on Images (Algorithm Archive)\footnote{Convolutions on Images --- URL: \url{https://www.algorithm-archive.org/contents/convolutions/2d/2d.html} (дата обращения: 20.05.2026).}.
+    \item Image filtering using convolution in OpenCV (документация OpenCV)\footnote{Image filtering using convolution in OpenCV ~--- URL: \url{https://opencv.org/blog/image-filtering-using-convolution-in-opencv/} (дата обращения: 20.05.2026).}.
+    \item Convolutions on Images (Algorithm Archive)\footnote{Convolutions on Images ~--- URL: \url{https://www.algorithm-archive.org/contents/convolutions/2d/2d.html} (дата обращения: 20.05.2026).}.
 \end{enumerate}
 
-Свёртка заключается в следующем: по изображению скользит ядро размером kxk с шагом 1. Для каждой позиции вычисляется сумма поэлементных произведений пикселей окна и коэффициентов ядра:
+Свёртка используется для выделения признаков изображения (границ, текстуры), применения фильтров (размытие, повышение резкости, тиснение), уменьшения шума, а также в свёрточных нейронных сетях для распознавания объектов.
 
+Алгоритм свёртки заключается в следующем: по изображению скользит ядро размером kxk с шагом 1. Для каждой позиции вычисляется сумма поэлементных произведений пикселей окна и коэффициентов ядра:
 \[
         O[i,j] = \sum_{u=0}^{k-1} \sum_{v=0}^{k-1} I_{\text{pad}}[i+u, j+v] \cdot K[u,v]
-    \]
+\]
 
-    \begin{tabular}{l}
-        где: \\
-        $O[i,j]$ --- значение для пикселя нового изображения; \\
-        $I_{\text{pad}}[i+u, j+v]$ --- матрица размером с ядро. Центр матрицы --- исходный пиксель; \\
-        $K[u,v]$ --- ядро.
-    \end{tabular}
+\begin{tabular}{l}
+    где: \\
+    $O[i,j]$ ~--- значение для пикселя нового изображения; \\
+    $I_{\text{pad}}[i+u, j+v]$ ~--- матрица размером с ядро. Центр матрицы ~--- исходный пиксель; \\
+    $K[u,v]$ ~--- ядро.
+\end{tabular}
 
-Ядро свёртки (фильтр) --- это небольшая, обычно квадратная матрица коэффициентов, которая определяет эффект преобразования изображения. В процессе свёртки ядро последовательно сдвигается по изображению, и для каждого положения вычисляется взвешенная сумма значений пикселей под ядром.
+Ядро свёртки (фильтр) ~--- это небольшая, обычно квадратная матрица коэффициентов, которая определяет эффект преобразования изображения. В процессе свёртки ядро последовательно сдвигается по изображению, и для каждого положения вычисляется взвешенная сумма значений пикселей под ядром.
 
-Пример ядра (sharpen\_3x3 --- повышение резкости):
+Пример ядра (sharpen\_3x3 ~--- повышение резкости):
 
 \[
 \begin{pmatrix}
@@ -101,53 +102,69 @@
 
 \begin{enumerate}
     \item Исходное изображение дополняется или обрезается согласно выбранному режиму обработки краёв.
-    \item Выполняется свёртка (для RGB-изображений операция выполняется независимо для каждого канала, после чего каналы объединяются).
+    \item Выполняется свёртка (для цветных изображений операция выполняется независимо для каждого канала, после чего каналы объединяются).
     \item Функция возвращает итоговое изображение (в виде массива NumPy).
 \end{enumerate}
-
-Выбор конкретного ядра, режима обработки краёв, входного изображения, выходной директории, количества каналов (grayscale или RGB-изображение) осуществляется через аргументы командной строки с использованием библиотеки Typer\footnote{Typer --- URL: \url{https://typer.tiangolo.com/} (дата обращения: 20.05.2026).}.
-
-Для проверки корректности собственной реализации свёртки использовалась функция scipy.signal.convolve2d, так как именно она позволяет проверять режим no\_padding (обрезка краёв, соответствует valid)\footnote{SciPy API --- Signal processing (scipy.signal) --- convolve2d --- URL:\url{https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.convolve2d.html} (дата обращения: 21.05.2026).}. 
-cv2.filter2D из OpenCV всегда возвращает изображение того же размера, что и входное\footnote{Function opencv::imgproc::filter\_2d --- URL:\url{https://docs.opencv.org/4.x/dd/d6a/tutorial_js_filtering.html}\label{opencv} (дата обращения: 21.05.2026).}, поэтому не позволяет проверить все варианты обработки краёв, реализованные в работе.
 
 Реализация решения осуществлялась с использованием также следующего программного стека:
 
 \begin{enumerate}
-    \item NumPy --- для работы с операциями над двумерными массивами.
-    \item Pillow --- для загрузки и сохранения изображений, преобразования в массивы NumPy.
-    \item Matplotlib --- для визуализации результатов и построения графиков производительности.
-    \item pytest --- для тестирования.
-    \item pytest-benchmark --- для замера производительности и сравнения времени выполнения.
+    \item NumPy ~--- для работы с операциями над двумерными массивами.
+    \item Pillow ~--- для загрузки и сохранения изображений, преобразования в массивы NumPy.
+    \item Matplotlib ~--- для визуализации результатов и построения графиков производительности.
+    \item pytest ~--- для тестирования.
+    \item pytest-benchmark ~--- для замера производительности и сравнения времени выполнения.
 \end{enumerate}
 
-Управление зависимостями выполнялось через инструмент uv\footnote{uv --- URL: \url{https://docs.astral.sh/uv/} (дата обращения: 20.05.2026).}.
+Управление зависимостями выполнялось через инструмент uv\footnote{uv ~--- URL: \url{https://docs.astral.sh/uv/} (дата обращения: 20.05.2026).}.
 
 Доступны следующие ядра: 
 
 \begin{enumerate}
-    \item sharpen\_3x3: повышение резкости.
-    \item blur\_3x3: усредняющее размытие.
-    \item gaussian\_blur\_3x3: размытие по Гауссу.
-    \item highlighting\_vertical\_borders\_3x3: выделение вертикальных границ.
-    \item highlighting\_horizontal\_borders\_3x3: выделение горизонтальных границ.
-    \item embossing\_3x3: эффект тиснения.
-    \item blur\_5x5: усредняющее размытие (более плавное размытие, чем у 3х3).
-    \item gaussian\_blur\_5x5: размытие по Гауссу (более плавное размытие, чем у 3х3).
+    \item \texttt{sharpen\_3x3} ~--- повышение резкости.
+    \item \texttt{blur\_3x3} ~--- усредняющее размытие.
+    \item \texttt{gaussian\_blur\_3x3} ~--- размытие по Гауссу.
+    \item \texttt{highlighting\_vertical\_borders\_3x3} ~--- выделение вертикальных границ.
+    \item \texttt{highlighting\_horizontal\_borders\_3x3} ~--- выделение горизонтальных границ.
+    \item \texttt{embossing\_3x3} ~--- эффект тиснения.
+    \item \texttt{blur\_5x5} ~--- усредняющее размытие (более плавное размытие, чем у 3х3).
+    \item \texttt{gaussian\_blur\_5x5} ~--- размытие по Гауссу (более плавное размытие, чем у 3х3).
 \end{enumerate}
 
 Доступны следующие варианты обработки края:
 
 \begin{enumerate}
-    \item no\_padding: игнорирование краёв (результат будет меньше исходного изображения на размер ядра).
-    \item zero\_padding: дополнение нулями.
-    \item replicate\_padding: копирование крайних пикселей.
-    \item mirror\_padding: отражение без дублирования границы.
-    \item symmetric\_padding: симметричное отражение с дублированием границы.
-    \item esymmetric\_padding`: симметричное отражение с дублированием границы.
-    \item tile\_padding: циклическое продолжение.
+    \item \texttt{no\_padding} ~--- игнорирование краёв (результат будет меньше исходного изображения на размер ядра).
+    \item \texttt{zero\_padding} ~--- дополнение нулями.
+    \item \texttt{replicate\_padding} ~--- копирование крайних пикселей.
+    \item \texttt{mirror\_padding} ~--- отражение без дублирования границы.
+    \item \texttt{symmetric\_padding} ~--- симметричное отражение с дублированием границы.
+    \item \texttt{tile\_padding} ~--- циклическое продолжение.
 \end{enumerate}
 
-Репозиторий с реализацией: \url{https://github.com/roriess/image-convolution}
+\subsection{Запуск программы}
+
+Выбор конкретного ядра, режима обработки краёв, входного изображения, выходной директории, количества каналов (черно-белое или цветное изображение) осуществляется через аргументы командной строки с использованием библиотеки Typer\footnote{Typer ~--- URL: \url{https://typer.tiangolo.com/} (дата обращения: 20.05.2026).}. 
+
+Пример запуска программы:
+
+\begin{verbatim}
+uv run -m src.main run --input-dir INPUT_DIR --output-dir OUTPUT_DIR --image-mode IMAGE_MODE --kernel KERNEL --padding PADDING
+\end{verbatim}
+
+Где:
+\begin{itemize}
+    \item \texttt{--input-dir} ~--- путь к директории с входными изображениями;
+    \item \texttt{--output-dir} ~--- путь к директории для сохранения обработанных изображений;
+    \item \texttt{--image-mode} ~--- режим цветности: L (чёрно-белые изображения) или RGB (цветное изображение);
+    \item \texttt{--kernel} ~--- ядро свёртки (например, blur\_3x3, sharpen\_3x3);
+    \item \texttt{--padding} ~--- режим обработки краёв (например, zero\_padding, replicate\_padding, no\_padding).
+\end{itemize}
+
+\subsection{Тестирование}
+
+Для проверки корректности собственной реализации свёртки использовалась функция scipy.signal.convolve2d, так как именно она позволяет проверять режим no\_padding (обрезка краёв, соответствует valid)\footnote{SciPy API ~--- Signal processing (scipy.signal) ~--- convolve2d --- URL:\url{https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.convolve2d.html} (дата обращения: 21.05.2026).}. 
+cv2.filter2D из OpenCV всегда возвращает изображение того же размера, что и входное\footnote{Function opencv::imgproc::filter\_2d ~--- URL:\url{https://docs.opencv.org/4.x/dd/d6a/tutorial_js_filtering.html}\label{opencv} (дата обращения: 21.05.2026).}, поэтому не позволяет проверить все варианты обработки краёв, реализованные в работе.
 
 \section{Эксперименты}
 
@@ -162,7 +179,7 @@ cv2.filter2D из OpenCV всегда возвращает изображени�
     \label{fig:benchmark_results}
 \end{figure}
 
-Вывод, полученный из экспериментов: pеализованная свертка уступает в производительности функции cv2.filter2D  из OpenCV\footnote{Benchmark results description --- URL: \url{https://github.com/roriess/image-convolution/blob/main/src/benchmark/benchmark_results_description.md} (дата обращения: 20.05.2026).}.;
+Вывод, полученный из экспериментов: pеализованная свертка уступает в производительности функции cv2.filter2D  из OpenCV\footnote{Benchmark results description ~--- URL: \url{https://github.com/roriess/image-convolution/blob/main/src/benchmark/benchmark_results_description.md} (дата обращения: 20.05.2026).}.;
 
 \section{Заключение}
 
@@ -173,5 +190,8 @@ cv2.filter2D из OpenCV всегда возвращает изображени�
     \item Реализована свертка для grayscale и RGB изображений с возможным выбором ядра и варианта обработки края. 
     \item Поставлены эксперименты.
 \end{enumerate}
+
+Репозиторий с реализацией: \url{https://github.com/roriess/image-convolution}
+
 
 \end{document}
