@@ -1,0 +1,5 @@
+Threads,Time
+Sequential,16.29
+Par(1),54.21
+Par(2),363.79
+Par(4),357.84
