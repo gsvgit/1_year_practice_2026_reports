@@ -1,0 +1,285 @@
+\documentclass[a4paper,12pt]{article}
+
+\usepackage[left=2cm,right=2cm,top=2cm,bottom=2cm]{geometry}
+\usepackage{setspace}
+\onehalfspacing
+
+\usepackage{polyglossia}
+\setdefaultlanguage[babelshorthands=true]{russian}
+\setotherlanguage{english}
+
+\usepackage{fontspec}
+\setmainfont{FreeSerif}
+\newfontfamily{\russianfonttt}[Scale=0.7]{DejaVuSansMono}
+
+\usepackage[tiny, compact]{titlesec}
+
+\usepackage{hyperref}
+\usepackage{bookmark}
+\usepackage{csquotes}
+\usepackage{enumitem}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{pgfplots}
+\usepackage{pgfplotstable}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{xcolor}
+\usepackage{listings}
+
+\lstdefinelanguage{FSharp}{
+    morekeywords={let, new, match, with, rec, open, module, namespace, type, of, member, and, for, in, do, begin, end, fun, function, return, yield, try, mutable, if, then, else, elif, array, seq, list, return!, val},
+    keywordstyle=\color{blue}\bfseries,
+    ndkeywords={Empty, Node, Ok, Error, Result, Tree, AVLSet, ParallelAVLSet},
+    ndkeywordstyle=\color{teal}\bfseries,
+    identifierstyle=\color{black},
+    sensitive=true,
+    morecomment=[l]{//},
+    morecomment=[s]{(*}{*)},
+    commentstyle=\color{gray}\ttfamily,
+    stringstyle=\color{red}\ttfamily,
+    morestring=[b]",
+    morestring=[b]"""
+}
+\lstset{
+    language=FSharp,
+    basicstyle=\small\ttfamily,
+    breaklines=true,
+    frame=single,
+    numbers=left,
+    numberstyle=\tiny\color{gray},
+    xleftmargin=15pt,
+    showstringspaces=false,
+    captionpos=b
+}
+
+\pgfplotsset{compat=1.18}
+\usepackage{filecontents}
+
+\begin{filecontents*}{bench_parallel.csv}
+Threads,Time
+Sequential,16.29
+Par(1),54.21
+Par(2),363.79
+Par(4),357.84
+\end{filecontents*}
+
+\begin{filecontents*}{bench_traversal.csv}
+Scenario,Sequential,Traversal
+Intersection (100k x 100),0.318,0.083
+Difference (100 x 10k),0.168,6.958
+\end{filecontents*}
+
+\begin{document}
+
+\begin{center}
+    {\large САНКТ-ПЕТЕРБУРГСКИЙ ГОСУДАРСТВЕННЫЙ УНИВЕРСИТЕТ}\\[0.3cm]
+    {\large Кафедра системного программирования}\\[1.5cm]
+    
+    {\Large \textbf{Реализация типа \enquote{Множество} на основе АВЛ-дерева на языке F\#}}\\[1.5cm]
+    
+    \begin{flushright}
+    \begin{tabular}{rl}
+        Выполнил: & Тарануха Леонид Антонович \\
+        Группа: & 25.Б73-мм \\
+        Научный руководитель: & Григорьев Семён Вячеславович \\
+        Номер семестра практики: & 2 \\
+    \end{tabular}
+    \end{flushright}
+\end{center}
+\vspace{1cm}
+
+\section{Постановка задачи}
+
+Работа выполняется в рамках открытого исследовательского сообщества \textbf{Lamagraph} (Lambdas, Matrices and Graphs), занимающегося разработкой высокопроизводительных программно-аппаратных решений для анализа данных методами линейной алгебры с использованием функционального программирования. Проект реализуется внутри репозитория \textbf{QTreeFSharp} (Quad-tree based linear algebra in F\# for GraphBLAS-style graph analysis) --- прототипа для реализации сетей взаимодействия (interaction nets).
+
+Фундаментальные графовые алгоритмы (поиск в ширину, подсчет треугольников) требуют эффективных структур для хранения уникальных элементов и проведения массовых теоретико-множественных операций. 
+
+\textbf{Целью работы является} реализация неизменяемой структуры данных \enquote{Множество} на основе сбалансированного АВЛ-дерева на языке F\# и исследование её производительности.
+
+\textbf{Задачи:}
+\begin{itemize}
+    \item Реализовать структуру АВЛ-дерева и базовые операции (добавление, удаление, поиск) с автоматической балансировкой.
+    \item Реализовать теоретико-множественные операции (\verb|union|, \verb|intersection|, \verb|difference|, \verb|symmDifference|).
+    \item Разработать альтернативные подходы к операциям над множествами: на основе рекурсивного обхода (\verb|Traversal|) и многопоточности (\verb|ParallelAVLSet|).
+    \item Покрыть реализацию Property-based и Unit-тестами.
+    \item Провести экспериментальное профилирование посредством BenchmarkDotNet.
+\end{itemize}
+
+\section{Предлагаемое решение}
+
+\subsection{Структура данных и обработка ошибок}
+Основой решения является тип \verb|AVLSet<'Value>|, представляющий собой неизменяемое АВЛ-дерево. Архитектурной особенностью реализации является отказ от генерации исключений в пользу использования монады \verb|Result| и специализированного вычислительного выражения \verb|resultM|. 
+
+\begin{lstlisting}[caption={Определение базовых типов}]
+type AVLSet<'Value> =
+    | Empty
+    | Node of int * 'Value * AVLSet<'Value> * AVLSet<'Value>
+
+type AVLSetError =
+    | RotationError
+    | InvalidHeightOfNode
+    | EmptyNodeWasNotExpected
+\end{lstlisting}
+
+Балансировка при вставке и удалении обеспечивается функциями малых и больших вращений (\verb|LLrotate|, \verb|RRrotate|, \verb|LRrotate|, \verb|RLrotate|). 
+
+\subsection{Алгоритмы теоретико-множественных операций}
+Для операций над несколькими множествами спроектированы три различных алгоритмических подхода:
+
+\begin{enumerate}
+    \item \textbf{Стандартный (Sequential):} Базовый алгоритм рекурсивного слияния. Опирается на функции \verb|split| (разрезание дерева по ключу) и \verb|join| (слияние деревьев). Обеспечивает логарифмическую сложность и выступает в качестве эталона.
+    
+    \item \textbf{Оптимизация обходом (Traversal):} Подход для множеств с большой разницей в размере. Алгоритм осуществляет обход меньшего множества и точечное применение операций к большему посредством функции \verb|traverseRes|.
+\begin{lstlisting}[caption={Пример реализации объединения через обход}]
+let union set1 set2 =
+    let maxSet, minSet = Tree.maxMinNodesByHeights set1 set2
+    let unSet = Tree.copy maxSet
+    Tree.traverseRes Tree.insert unSet minSet
+\end{lstlisting}
+
+    \item \textbf{Параллельный (Parallel):} Многопоточная реализация, использующая \verb|Async.Parallel| с настраиваемым ограничением пула потоков. После выполнения разрезания (\verb|split|), левое и правое поддеревья обрабатываются асинхронно в независимых потоках.
+\end{enumerate}
+
+Корректность алгоритмов проверялась библиотеками Xunit, FsUnit и FsCheck. Property-тесты доказали сохранение инвариантов АВЛ-дерева (разница высот поддеревьев $\le 1$) после любой последовательности случайных операций.
+
+\section{Экспериментальное исследование производительности}
+
+\subsection{Методика тестирования}
+Замеры времени выполнения производились средствами библиотеки \verb|BenchmarkDotNet|. Использовалась следующая аппаратно-программная конфигурация: процессор Intel Core i5-12450H (8 ядер), ОС Ubuntu 24.04.4 LTS, платформа .NET 10.0.7.
+
+Входные данные генерировались случайным образом на этапе инициализации бенчмарка во избежание влияния дискового ввода-вывода. Для одиночных операций размер исходного множества $N$ составлял $100$, $10\,000$ и $100\,000$ элементов. Для бинарных операций размеры множеств $A$ и $B$ варьировались: $A \in \{100, 1000, 10\,000, 100\,000\}$, $B \in \{100, 10\,000\}$.
+
+\subsection{Анализ результатов: Одиночные операции}
+Результаты экспериментов подтверждают логарифмическую асимптотику $O(\log N)$. При увеличении размера дерева на три порядка (со 100 до 100\,000 узлов) время выполнения вставки и удаления возрастает $\approx$ в 2,3 раза (с $582$~нс до $1376$~нс). Объём аллоцируемой памяти зависит от текущей высоты дерева и варьируется от 840 до 2080 байт на операцию.
+
+\subsection{Анализ результатов: Sequential и Traversal}
+Сравнение времени выполнения для различных соотношений размеров множеств $A$ и $B$ представлено на рисунке~\ref{fig:traversal}.
+
+\begin{figure}[h!]
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+    ybar,
+    bar width=20pt,
+    enlargelimits=0.2,
+    legend style={at={(0.5,-0.2)}, anchor=north, legend columns=-1},
+    ylabel={Время выполнения (мс)},
+    symbolic x coords={Intersection (100k x 100), Difference (100 x 10k)},
+    xtick=data,
+    nodes near coords,
+    nodes near coords align={vertical},
+    width=12cm, height=6cm
+    ]
+\addplot table[x=Scenario,y=Sequential,col sep=comma] {bench_traversal.csv};
+\addplot table[x=Scenario,y=Traversal,col sep=comma] {bench_traversal.csv};
+\legend{Sequential Baseline, Tree Traversal}
+\end{axis}
+\end{tikzpicture}
+\caption{Сравнение Sequential и Traversal подходов}
+\label{fig:traversal}
+\end{figure}
+
+Метод \verb|Traversal| демонстрирует высокую эффективность при пересечении множеств с большой разницей в размерах ($A = 100\,000$, $B = 100$), опережая базовый рекурсивный алгоритм в 3,8 раза ($83,9$~мкс против $318,2$~мкс). При сопоставимых размерах множеств или обратном соотношении (например, $A=100$, $B=10\,000$) применение обхода приводит к существенному снижению производительности (до 41 раза для операции разности). 
+
+\subsection{Анализ результатов: Sequential и Parallel}
+Зависимость времени выполнения от количества задействованных потоков представлена на рисунке~\ref{fig:parallel}.
+
+\begin{figure}[h!]
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+    ybar,
+    bar width=25pt,
+    enlargelimits=0.15,
+    ylabel={Время пересечения (мс)},
+    symbolic x coords={Sequential, Par(1), Par(2), Par(4)},
+    xtick=data,
+    nodes near coords,
+    nodes near coords align={vertical},
+    width=10cm, height=6cm
+    ]
+\addplot[fill=blue!40] table[x=Threads,y=Time,col sep=comma] {bench_parallel.csv};
+\end{axis}
+\end{tikzpicture}
+\caption{Зависимость времени выполнения от числа потоков (Пересечение, A=100k, B=10k).}
+\label{fig:parallel}
+\end{figure}
+
+Во всех тестовых сценариях многопоточная реализация показала время выполнения, значительно превышающее базовый последовательный алгоритм. Для множеств $100\,000 \times 10\,000$ время пересечения составило $16,3$~мс (последовательно) и $363,8$~мс (2 потока). Увеличение времени обусловлено накладными расходами пула потоков (свыше 71\,000 задач на операцию) и нагрузкой на сборщик мусора (аллокация более 100~МБ памяти).
+
+\section{Заключение}
+
+В ходе выполнения работы получены следующие результаты:
+\begin{itemize}
+    \item Реализована структура данных АВЛ-Множества на языке F\#.
+    \item Добавлен API теоретико-множественных операций с поддержкой трех видов алгоритмического исполнения: последовательного, параллельного и основанного на обходе (traversal).
+    \item Кодовая база покрыта модульными (Xunit) и property-based (FsCheck) тестами.
+    \item Проведено профилирование посредством BenchmarkDotNet. Выявлены границы применимости метода Traversal и доказана избыточность наивной асинхронной многопоточности для подобных рекурсивных вычислений на исследуемых объёмах данных.
+\end{itemize}
+
+Материалы и история реализации размещены в открытом доступе:
+\begin{itemize}
+    \item Личный репозиторий: \url{https://github.com/LeoN192/AVLSetFSharp}
+    \item Pull Request (в статусе code review): \url{https://github.com/Lamagraph/QTreeFSharp/pull/17}
+\end{itemize}
+
+\section*{Литература}
+\begin{enumerate}
+    \item Исходный код проекта QTreeFSharp. URL: \url{https://github.com/Lamagraph/QTreeFSharp} (дата обращения: 09.06.2026).
+    \item Документация библиотеки FsCheck для Property-based тестирования. URL: \url{https://fscheck.github.io/FsCheck/} (дата обращения: 09.06.2026).
+    \item Официальная документация инструмента профилирования BenchmarkDotNet. URL: \url{https://benchmarkdotnet.org/} (дата обращения: 09.06.2026).
+    \item Okasaki C. Purely Functional Data Structures. --- Cambridge University Press, 1998. --- 232 p.
+\end{enumerate}
+
+\newpage
+\appendix
+\section{Приложение: Результаты бенчмарков}
+
+Ниже приведены полные результаты выполнения замеров производительности, сгенерированные инструментом BenchmarkDotNet.
+
+\subsection{Одиночные операции (SingleOpsBenchmark)}
+\begin{center}
+\footnotesize
+\pgfplotstabletypeset[
+    col sep=semicolon, 
+    string type,
+    every head row/.style={before row=\toprule,after row=\midrule},
+    every last row/.style={after row=\bottomrule},
+    columns={Method, A, Mean, Error, Gen0, Allocated}, 
+    columns/Method/.style={column name=Метод},
+    columns/Mean/.style={column name=Время (Mean)},
+    columns/Allocated/.style={column name=Память}
+]{QuadTree.Benchmarks.AVLSet.SingleOpsBenchmark-report.csv}
+\end{center}
+
+\subsection{Последовательные операции (SequentialSetsBenchmark)}
+\footnotesize
+\pgfplotstabletypeset[
+    col sep=semicolon,
+    string type,
+    begin table=\begin{longtable},
+    end table=\end{longtable},
+    every head row/.style={before row=\toprule,after row=\midrule\endhead},
+    every last row/.style={after row=\bottomrule},
+    columns={Method, A, B, Mean, Ratio, Allocated},
+    columns/Method/.style={column name=Метод},
+    columns/Mean/.style={column name=Время (Mean)}
+]{QuadTree.Benchmarks.AVLSet.SequentialSetsBenchmark-report.csv}
+
+\subsection{Параллельные операции (ParallelSetsBenchmark)}
+\footnotesize
+\pgfplotstabletypeset[
+    col sep=semicolon,
+    string type,
+    begin table=\begin{longtable},
+    end table=\end{longtable},
+    every head row/.style={before row=\toprule,after row=\midrule\endhead},
+    every last row/.style={after row=\bottomrule},
+    columns={Method, A, B, threads, Mean, Ratio, Allocated}, 
+    columns/Method/.style={column name=Метод},
+    columns/threads/.style={column name=Потоки},
+    columns/Mean/.style={column name=Время (Mean)}
+]{QuadTree.Benchmarks.AVLSet.ParallelSetsBenchmark-report.csv}
+
+\end{document}
