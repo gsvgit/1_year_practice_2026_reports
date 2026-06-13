@@ -14,17 +14,21 @@
 
 \usepackage[tiny, compact]{titlesec}
 
+\usepackage{titling}
+\setlength{\droptitle}{-1cm}
+\pretitle{\begin{center}\begin{bfseries}\Large}
+\posttitle{\par\end{bfseries}\end{center}}
+\preauthor{\begin{center}\normalsize}
+\postauthor{\par\end{center}\vspace{-1.8cm}}
+
 \usepackage{hyperref}
 \usepackage{bookmark}
 \usepackage{csquotes}
 \usepackage{enumitem}
 \usepackage{graphicx}
 \usepackage{amsmath}
-\usepackage{pgfplots}
-\usepackage{pgfplotstable}
-\usepackage{booktabs}
-\usepackage{longtable}
 \usepackage{xcolor}
+\usepackage{booktabs}
 \usepackage{listings}
 
 \lstdefinelanguage{FSharp}{
@@ -53,65 +57,45 @@
     captionpos=b
 }
 
-\pgfplotsset{compat=1.18}
-\usepackage{filecontents}
-
-\begin{filecontents*}{bench_parallel.csv}
-Threads,Time
-Sequential,16.29
-Par(1),54.21
-Par(2),363.79
-Par(4),357.84
-\end{filecontents*}
-
-\begin{filecontents*}{bench_traversal.csv}
-Scenario,Sequential,Traversal
-Intersection (100k x 100),0.318,0.083
-Difference (100 x 10k),0.168,6.958
-\end{filecontents*}
+\title{Реализация типа \enquote{Множество} на основе АВЛ-дерева на языке F\#}
+\author{Тарануха Леонид Антонович}
+\date{}
 
 \begin{document}
 
-\begin{center}
-    {\large САНКТ-ПЕТЕРБУРГСКИЙ ГОСУДАРСТВЕННЫЙ УНИВЕРСИТЕТ}\\[0.3cm]
-    {\large Кафедра системного программирования}\\[1.5cm]
-    
-    {\Large \textbf{Реализация типа \enquote{Множество} на основе АВЛ-дерева на языке F\#}}\\[1.5cm]
-    
-    \begin{flushright}
-    \begin{tabular}{rl}
-        Выполнил: & Тарануха Леонид Антонович \\
-        Группа: & 25.Б73-мм \\
-        Научный руководитель: & Григорьев Семен Вячеславович \\
-        Номер семестра практики: & 2 \\
-    \end{tabular}
-    \end{flushright}
-\end{center}
-\vspace{1cm}
+\maketitle
+
+\begin{flushright}
+\begin{tabular}{r}
+    Группа: \emph{\enquote{25.Б73-мм}} \\
+    Кафедра: \emph{системного программирования} \\
+    Научный руководитель: \emph{Григорьев Семен Вячеславович} \\
+    Номер семестра практики: \emph{2} \\
+\end{tabular}
+\end{flushright}
 
 \section{Постановка задачи}
 
-Данная работа посвящена реализации неизменяемой структуры данных \enquote{Множество} на основе АВЛ-дерева на языке F\#. Проект выполняется в рамках открытого исследовательского сообщества Lamagraph и интегрируется в репозиторий QTreeFSharp --- прототип сетей взаимодействия для анализа данных методами линейной алгебры.
+Данная работа посвящена реализации неизменяемой структуры данных \enquote{Множество} на основе АВЛ-дерева на языке F\#. Проект выполняется в рамках сообщества Lamagraph. LamaGraph~--- это проект по разработке специализированного вычислителя для разреженной линейной алгебры и специализированного языка программирования для него. Разработка вычислителя включает в себя прототипирование различных его частей и подсистем. Разработка языка заключается не только в создании его синтаксиса и транслятора, но также в разработке и прототипировании частей среды выполнения (рантайма) и пользовательских библиотек. Данная структура интегрируется в репозиторий QTreeFSharp.
 
-Фундаментальные графовые алгоритмы требуют эффективных структур для хранения уникальных элементов и выполнения теоретико-множественных операций. 
+Фундаментальные алгоритмы анализа графов требуют эффективных структур для хранения уникальных элементов и выполнения теоретико-множественных операций. 
 
-\textbf{Целью работы является} реализация структуры данных \enquote{Множество} с автоматической балансировкой и оценка ее производительности.
+\textbf{Целью работы является} реализация структуры данных \enquote{Множество} с автоматической балансировкой АВЛ-дерева, на основе которого оно написано, и оценка ее производительности.
 
-Для достижения поставленной цели были сформулированы следующие \textbf{задачи}:
+Для достижения поставленной цели были сформулированы следующие \textbf{задачи}.
 \begin{itemize}
     \item Реализовать структуру АВЛ-дерева и базовые операции (добавление, удаление, поиск).
     \item Реализовать теоретико-множественные операции (\verb|union|, \verb|intersection|, \verb|difference|, \verb|symmDifference|).
-    \item Разработать альтернативные подходы к выполнению операций: на основе рекурсивного обхода (\verb|Traversal|) и многопоточности (\verb|ParallelAVLSet|).
+    \item Разработать альтернативные последовательному подходы к выполнению операций: на основе рекурсивного обхода (\verb|Traversal|) и многопоточности (\verb|ParallelAVLSet|).
     \item Написать модульные (Unit) и property-based тесты.
-    \item Провести профилирование разработанных алгоритмов с использованием BenchmarkDotNet.
+    \item Провести бенчмаркинг разработанных алгоритмов с использованием BenchmarkDotNet.
 \end{itemize}
 
 \section{Описание предлагаемого решения}
 
-\subsection{Структура данных и обработка ошибок}
-Тип \verb|AVLSet<'Value>| представляет собой классическое неизменяемое АВЛ-дерево. Для обработки возможных ошибок, связанных с нарушением инвариантов дерева, используется монада \verb|Result| вместо исключений.
+Тип \verb|AVLSet<'Value>| представляет собой неизменяемое АВЛ-дерево. Как показано в листинге~\ref{lst:base_types}, узел дерева содержит высоту, значение и ссылки на левое и правое поддеревья. Для обработки возможных ошибок, связанных с нарушением инвариантов дерева (например, некорректная высота узла), используется монада \verb|Result| и специальный тип ошибок \verb|AVLSetError| вместо генерации исключений.
 
-\begin{lstlisting}[caption={Определение базовых типов}]
+\begin{lstlisting}[caption={Определение базовых типов}, label={lst:base_types}]
 type AVLSet<'Value> =
     | Empty
     | Node of int * 'Value * AVLSet<'Value> * AVLSet<'Value>
@@ -124,8 +108,7 @@ type AVLSetError =
 
 Балансировка осуществляется стандартными алгоритмами малых и больших вращений (\verb|LLrotate|, \verb|RRrotate|, \verb|LRrotate|, \verb|RLrotate|). 
 
-\subsection{Алгоритмы теоретико-множественных операций}
-Реализовано три подхода к операциям над множествами:
+Реализовано три подхода к операциям над множествами.
 
 \begin{enumerate}
     \item \textbf{Последовательный (Sequential):} Базовый алгоритм рекурсивного слияния. Использует функции \verb|split| (разделение дерева по ключу) и \verb|join| (слияние). Является эталоном производительности.
@@ -139,139 +122,83 @@ type AVLSetError =
 
 \section{Эксперименты}
 
-\subsection{Условия тестирования}
-Профилирование выполнялось с помощью библиотеки \verb|BenchmarkDotNet| (ОС Ubuntu 24.04.4 LTS, .NET 10.0.7, процессор Intel Core i5-12450H). Размер базового множества $A$ варьировался от $100$ до $100\,000$ элементов. Размер вторичного множества $B$ составлял $100$ и $10\,000$ элементов.
+Бенчмаркинг выполнялся с помощью библиотеки \verb|BenchmarkDotNet| (ОС Ubuntu 24.04.4 LTS, .NET 10.0.7, процессор Intel Core i5-12450H). Размер базового множества $A$ варьировался от $100$ до $100\,000$ элементов. Размер вторичного множества $B$ составлял $100$, $10\,000$ и $100\,000$ элементов для оценки производительности алгоритмов при различных масштабах данных. 
+
+В таблице~\ref{tab:summary} представлены ключевые замеры, демонстрирующие крайние случаи поведения алгоритмов.
+
+\begin{table}[h!]
+\centering
+\caption{Результаты тестирования производительности}
+\label{tab:summary}
+\vspace{0.2cm}
+\begin{tabular}{llrrrl}
+\toprule
+\textbf{Операция} & \textbf{Размеры ($A \times B$)} & \textbf{Метод} & \textbf{Время} & \textbf{Память} & \textbf{Отношение} \\
+\midrule
+Добавление & $100 \times \text{---}$ & Sequential & 582 нс & 880 Б & 1.00 (Эталон) \\
+Добавление & $100\,000 \times \text{---}$ & Sequential & 1376 нс & 2080 Б & $\approx 2.3\times$ \\
+\midrule
+Пересечение & $100\,000 \times 100$ & Sequential & 318 мкс & 447 КБ & 1.00 (Эталон) \\
+Пересечение & $100\,000 \times 100$ & Traversal & 83 мкс & 86 КБ & $\approx 3.8\times$ (Ускорение) \\
+\midrule
+Разность & $100 \times 100\,000$ & Sequential & 243 мкс & 321 КБ & 1.00 (Эталон) \\
+Разность & $100 \times 100\,000$ & Traversal & 75387 мкс & 88 МБ & $\approx 309\times$ (Замедление) \\
+\midrule
+Пересечение & $10\,000 \times 100\,000$ & Sequential & 15.4 мс & 17.9 МБ & 1.00 (Эталон) \\
+Пересечение & $10\,000 \times 100\,000$ & Parallel (4) & 354.3 мс & 100.2 МБ & $\approx 23\times$ (Замедление) \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \subsection{Одиночные операции}
-Результаты замеров для одиночных операций показывают сложность $O(\log N)$. Увеличение количества узлов на три порядка (со 100 до 100\,000) приводит к росту времени выполнения вставки с 582~нс до 1376~нс. Объем выделяемой памяти изменяется логарифмически от 840 до 2080 байт на операцию.
+Результаты замеров для одиночных операций соотносятся с предполагаемой сложностью $O(\log N)$. Увеличение количества узлов на три порядка (со 100 до 100\,000) приводит к росту времени выполнения вставки с 582~нс до 1376~нс. Объем выделяемой памяти изменяется логарифмически от 840 до 2080 байт на операцию.
 
 \subsection{Оценка реализации, основанной на обходе дерева}
 Результаты сравнения базового алгоритма и обхода представлены на рисунке~\ref{fig:traversal}.
 
 \begin{figure}[h!]
 \centering
-\begin{tikzpicture}
-\begin{axis}[
-    ybar,
-    bar width=20pt,
-    enlargelimits=0.2,
-    legend style={at={(0.5,-0.2)}, anchor=north, legend columns=-1},
-    ylabel={Время выполнения (мс)},
-    symbolic x coords={Intersection (100k x 100), Difference (100 x 10k)},
-    xtick=data,
-    nodes near coords,
-    nodes near coords align={vertical},
-    width=12cm, height=6cm
-    ]
-\addplot table[x=Scenario,y=Sequential,col sep=comma] {bench_traversal.csv};
-\addplot table[x=Scenario,y=Traversal,col sep=comma] {bench_traversal.csv};
-\legend{Sequential, Traversal}
-\end{axis}
-\end{tikzpicture}
+\includegraphics[width=0.8\textwidth]{images/traversal_plot.pdf}
 \caption{Зависимость времени выполнения от выбранного подхода.}
 \label{fig:traversal}
 \end{figure}
 
-Метод \verb|Traversal| демонстрирует более высокую производительность при $|A| \gg |B|$. В сценарии пересечения множеств размеров $100\,000$ и $100$ время выполнения составило $83,9$~мкс против $318,2$~мкс для \verb|Sequential|. При $|A| \ll |B|$ использование обхода приводит к снижению производительности (например, $6,95$~мс против $0,16$~мс для операции разности).
+Метод \verb|Traversal| демонстрирует более высокую производительность при $|A| \gg |B|$. В сценарии пересечения множеств размеров $100\,000$ и $100$ время выполнения составило $83,9$~мкс против $318,2$~мкс для \verb|Sequential|. При $|A| \ll |B|$ использование обхода приводит к снижению производительности (например, $75,38$~мс против $0,24$~мс для операции разности).
 
 \subsection{Оценка многопоточной реализации}
 Зависимость времени выполнения пересечения от числа потоков приведена на рисунке~\ref{fig:parallel}.
 
 \begin{figure}[h!]
 \centering
-\begin{tikzpicture}
-\begin{axis}[
-    ybar,
-    bar width=25pt,
-    enlargelimits=0.15,
-    ylabel={Время пересечения (мс)},
-    symbolic x coords={Sequential, Par(1), Par(2), Par(4)},
-    xtick=data,
-    nodes near coords,
-    nodes near coords align={vertical},
-    width=10cm, height=6cm
-    ]
-\addplot[fill=blue!40] table[x=Threads,y=Time,col sep=comma] {bench_parallel.csv};
-\end{axis}
-\end{tikzpicture}
-\caption{Время выполнения пересечения множеств (A=100k, B=10k) в зависимости от потоков.}
+\includegraphics[width=0.8\textwidth]{images/parallel_plot.pdf}
+\caption{Время выполнения пересечения множеств (A=10k, B=100k) в зависимости от потоков.}
 \label{fig:parallel}
 \end{figure}
 
-Многопоточная реализация уступает последовательной во всех рассмотренных сценариях. При пересечении множеств $100\,000 \times 10\,000$ последовательный алгоритм выполняется за $16,3$~мс, в то время как параллельный на двух потоках --- за $363,8$~мс. Снижение производительности обусловлена накладными расходами планировщика задач (создание свыше 71\,000 микрозадач на операцию) и работой сборщика мусора (аллокация более 100~МБ памяти).
+Многопоточная реализация уступает последовательной во всех рассмотренных сценариях. При пересечении множеств $10\,000 \times 100\,000$ последовательный алгоритм выполняется за $15,4$~мс, в то время как параллельный на четырех потоках~--- за $354,3$~мс. Снижение производительности обусловлено накладными расходами пула потоков на планирование множества микрозадач и интенсивной работой сборщика мусора.
 
 \section{Заключение}
 
-В ходе работы выполнены все поставленные задачи:
+В ходе работы выполнены следующие задачи.
 \begin{itemize}
     \item Реализована структура данных АВЛ-Множества на языке F\#.
     \item Разработаны алгоритмы теоретико-множественных операций в трех вариантах (последовательный, обход, многопоточный).
     \item Написаны модульные и property-based тесты.
-    \item Проведено профилирование, на основе которого выявлены условия применимости параллельного метода и метода обхода дерева.
+    \item Проведен бенчмаркинг, на основе которого выявлены условия применимости параллельного метода и метода обхода дерева.
 \end{itemize}
 
-Кодовая база и результаты тестов размещены в открытом доступе:
+Кодовая база и результаты тестов размещены в открытом доступе.
 \begin{itemize}
     \item Репозиторий: \url{https://github.com/LeoN192/AVLSetFSharp}
     \item Pull Request: \url{https://github.com/Lamagraph/QTreeFSharp/pull/17}
 \end{itemize}
 
-\section*{Литература}
-\begin{enumerate}
-    \item Исходный код проекта QTreeFSharp. URL: \url{https://github.com/Lamagraph/QTreeFSharp} (дата обращения: 09.06.2026).
-    \item Документация библиотеки FsCheck. URL: \url{https://fscheck.github.io/FsCheck/} (дата обращения: 09.06.2026).
-    \item Документация инструмента BenchmarkDotNet. URL: \url{https://benchmarkdotnet.org/} (дата обращения: 09.06.2026).
-    \item Okasaki C. Purely Functional Data Structures. --- Cambridge University Press, 1998. --- 232 p.
-\end{enumerate}
-
-\newpage
-\appendix
-\section{Приложение: Результаты профилирования}
-
-В данном приложении представлены полные таблицы результатов BenchmarkDotNet.
-
-\subsection{Одиночные операции (SingleOpsBenchmark)}
-\begin{center}
-\footnotesize
-\pgfplotstabletypeset[
-    col sep=semicolon, 
-    string type,
-    every head row/.style={before row=\toprule,after row=\midrule},
-    every last row/.style={after row=\bottomrule},
-    columns={Method, A, Mean, Error, Gen0, Allocated}, 
-    columns/Method/.style={column name=Метод},
-    columns/Mean/.style={column name=Время (Mean)},
-    columns/Allocated/.style={column name=Память}
-]{QuadTree.Benchmarks.AVLSet.SingleOpsBenchmark-report.csv}
-\end{center}
-
-\subsection{Последовательные операции (SequentialSetsBenchmark)}
-\footnotesize
-\pgfplotstabletypeset[
-    col sep=semicolon,
-    string type,
-    begin table=\begin{longtable},
-    end table=\end{longtable},
-    every head row/.style={before row=\toprule,after row=\midrule\endhead},
-    every last row/.style={after row=\bottomrule},
-    columns={Method, A, B, Mean, Ratio, Allocated},
-    columns/Method/.style={column name=Метод},
-    columns/Mean/.style={column name=Время (Mean)}
-]{QuadTree.Benchmarks.AVLSet.SequentialSetsBenchmark-report.csv}
-
-\subsection{Параллельные операции (ParallelSetsBenchmark)}
-\footnotesize
-\pgfplotstabletypeset[
-    col sep=semicolon,
-    string type,
-    begin table=\begin{longtable},
-    end table=\end{longtable},
-    every head row/.style={before row=\toprule,after row=\midrule\endhead},
-    every last row/.style={after row=\bottomrule},
-    columns={Method, A, B, threads, Mean, Ratio, Allocated}, 
-    columns/Method/.style={column name=Метод},
-    columns/threads/.style={column name=Потоки},
-    columns/Mean/.style={column name=Время (Mean)}
-]{QuadTree.Benchmarks.AVLSet.ParallelSetsBenchmark-report.csv}
+\renewcommand{\refname}{Литература}
+\begin{thebibliography}{99}
+    \bibitem{QTree} Quad-tree based linear algebra in F\# for GraphBLAS-style graph analysis [Электронный ресурс]. URL: \url{https://github.com/Lamagraph/QTreeFSharp} (дата обращения: 13.06.2026).
+    \bibitem{FsCheck} FsCheck Documentation [Электронный ресурс]. URL: \url{https://fscheck.github.io/FsCheck/} (дата обращения: 13.06.2026).
+    \bibitem{BenchmarkDotNet} BenchmarkDotNet [Электронный ресурс]. URL: \url{https://benchmarkdotnet.org/} (дата обращения: 13.06.2026).
+    \bibitem{Okasaki} Okasaki C. Purely Functional Data Structures.~--- Cambridge University Press, 1998.~--- 232 p.
+\end{thebibliography}
 
 \end{document}
