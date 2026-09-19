@@ -3,6 +3,7 @@
 \usepackage[a4paper, top=8mm, bottom=8mm, left=8mm, right=8mm]{geometry}
 \usepackage{float}
 \usepackage{graphicx}
+\usepackage{caption}
 
 \usepackage{polyglossia}
 \setdefaultlanguage[babelshorthands=true]{russian}
@@ -59,13 +60,13 @@ QTreeFSharp~--- это библиотека разреженных вектор�
 
 \section{Постановка задачи}
 
-В исходном проекте единственным форматом хранения разреженных матриц был quadtree. Формат COO отсутствовал. Это создавало неудобства при импорте данных: многие библиотеки (SuiteSparse, SciPy, MATLAB) используют CSR или COO как формат обмена, а конвертация требовала промежуточных преобразований.
+В исходном проекте единственным полноценным форматом хранения разреженных матриц был quadtree. Тип \texttt{CoordinateList} при этом существовал и использовался как промежуточное представление при импорте данных (многие библиотеки~--- SuiteSparse, SciPy, MATLAB~--- используют CSR или COO как формат обмена), однако набор операций над COO-матрицами отсутствовал, что делало формат непригодным для практического использования и сравнения с quadtree.
 
 Кроме того, не было данных о том, как quadtree сравнивается с традиционными форматами по производительности. Для одних операций (доступ по индексу, умножение матриц) дерево может оказываться быстрее за счёт кэширования и сокращения числа обходимых элементов, для других (построение, обновление)~--- медленнее из-за накладных расходов рекурсии и аллокаций.
 
 \section{Цель работы}
 
-Целью работы является реализация формата COO (Coordinate List) для хранения разреженных матриц в библиотеке QTreeFSharp и сравнение его производительности с существующим форматом quadtree на синтетических и реальных данных.
+Целью работы является развитие формата COO (Coordinate List) в библиотеке QTreeFSharp~--- выделение его в отдельный модуль с полным набором операций~--- и сравнение производительности с существующим форматом quadtree на синтетических и реальных данных.
 
 \section{Задачи работы}
 
@@ -92,9 +93,9 @@ QTreeFSharp~--- это библиотека разреженных вектор�
 
 Формат COO (Coordinate List)~--- простейший формат хранения разреженных матриц. Каждый ненулевой элемент матрицы представляется тройкой: номер строки, номер столбца и значение. Все тройки хранятся в упорядоченном списке.
 
-В библиотеке QTreeFSharp формат COO реализован в модуле \texttt{COO}. Основной тип~--- \texttt{CoordinateList}, содержащий количество строк, количество столбцов и список троек \texttt{COOEntry}. Типы строк и столбцов помечены единицами измерения F\# (\texttt{rowindex}, \texttt{colindex}), что позволяет системе типов предотвратить смешивание индексов разных размерностей.
+В библиотеке QTreeFSharp тип \texttt{CoordinateList} (а также типы троек \texttt{COOEntry} и функции конвертации \texttt{fromCoordinateList}, \texttt{toCoordinateList}) уже присутствовал в модуле \texttt{Matrix} и использовался как промежуточное представление при импорте данных. В рамках данной работы формат COO был выделен в отдельный модуль \texttt{COO}, дополнен набором операций над матрицами и использован для сравнительного анализа с quadtree. Основной тип~--- \texttt{CoordinateList}, содержащий количество строк, количество столбцов и список троек \texttt{COOEntry}. Типы строк и столбцов помечены единицами измерения F\# (\texttt{rowindex}, \texttt{colindex}), что позволяет системе типов предотвратить смешивание индексов разных размерностей.
 
-Операции над матрицей в формате COO:
+Операции над матрицей в формате COO.
 
 \begin{itemize}
     \item \texttt{cooGet}~--- поиск элемента по индексу. Выполняет линейный перебор списка троек до нахождения нужной позиции или достижения конца списка. Сложность в худшем случае~--- $O(n)$, где $n$~--- число ненулевых элементов.
@@ -111,7 +112,7 @@ QTreeFSharp~--- это библиотека разреженных вектор�
 
 Ключевой механизм~--- конденсация: если после операции все четыре потомка узла оказались одинаковыми листьями, они сливаются в один. Это обеспечивает компактность структуры для данных с повторяющимися блоками.
 
-Операции над матрицей в формате quadtree:
+Операции над матрицей в формате quadtree.
 
 \begin{itemize}
     \item \texttt{get}~--- доступ к элементу. Выполняется рекурсивный спуск по дереву: на каждом уровне определяется, в какой квадрант попадает искомый индекс, и выбирается соответствующее поддерево. Сложность~--- $O(\log N)$, где $N$~--- размер стороны матрицы.
@@ -123,7 +124,7 @@ QTreeFSharp~--- это библиотека разреженных вектор�
 
 \subsection{Мостовые функции}
 
-Для конвертации между форматами реализованы две функции:
+Для конвертации между форматами реализованы две функции.
 
 \begin{itemize}
     \item \texttt{fromCoordinateList}~--- преобразование COO в quadtree. Список троек рекурсивно разделяется на четыре квадранта, строится дерево с последующей конденсацией.
@@ -132,7 +133,7 @@ QTreeFSharp~--- это библиотека разреженных вектор�
 
 \section{Модульные тесты}
 
-Для проверки корректности реализованных операций написаны модульные тесты с использованием фреймворка xUnit. Всего написано 133 теста, из которых 27~--- для модуля COO. Тесты покрывают:
+Для проверки корректности реализованных операций написаны модульные тесты с использованием фреймворка xUnit. Всего написано 188 тестов, из которых 39~--- для модуля COO. Тесты покрывают.
 
 \begin{itemize}
     \item \texttt{cooGet}: поиск существующего элемента, отсутствующего элемента и обращение за пределы матрицы.
@@ -143,13 +144,15 @@ QTreeFSharp~--- это библиотека разреженных вектор�
     \item Границы: пустые матрицы, матрицы нулевого размера, матрицы размером $1 \times 1$, матрицы с одним ненулевым элементом.
 \end{itemize}
 
-Все 133 теста проходят успешно.
+Все 188 тестов проходят успешно.
+
+Покрытие модуля \texttt{COO.fs} измерялось инструментом Coverlet (формат Cobertura): покрытие строк~--- порядка 95\%, покрытие ветвлений~--- порядка 85\%; наибольшее покрытие (\texttt{cooGet}, \texttt{cooMap}, \texttt{cooMapi}, \texttt{cooUpdate})~--- 100\% строк.
 
 \section{Экспериментальная оценка}
 
 \subsection{Инструменты и окружение}
 
-Измерения проводились с использованием BenchmarkDotNet~\footnote{URL: \url{https://benchmarkdotnet.org/} (дата обращения: 15.07.2026).}~--- фреймворка для микробенчмарков .NET. Среда исполнения~--- .NET 10. Операционная система~--- Windows 11. Процессор~--- AMD Ryzen 7 5800HS (3.20\,ГГц, 8 физических ядер, 16 логических). Каждая операция выполнялась в профиле \emph{ShortRun}: один запуск (LaunchCount=1) с тремя прогревочными и тремя измеряемыми итерациями; для запуска BenchmarkDotNet вычисляет математическое ожидание времени (Mean) и стандартное отклонение (StdDev). Для синтетических разреженных и реальных матриц операции \texttt{map}, \texttt{get}, \texttt{set} и \texttt{mxm} измерялись в пяти независимых запусках; итоговое значение~--- среднее по пяти запускам с межзапусковым стандартным отклонением. Операция \texttt{mapi} была переизмерена после доработки реализации \texttt{cooMapi} также в пяти запусках. Для плотных матриц ввиду высокой стоимости измерений (отдельные комбинации требуют десятков секунд на итерацию) каждая комбинация измерялась в одном запуске; для таких данных межзапусковое отклонение не вычислялось.
+Измерения проводились с использованием BenchmarkDotNet~\footnote{URL: \url{https://benchmarkdotnet.org/} (дата обращения: 15.07.2026).}~--- фреймворка для микробенчмарков .NET. Среда исполнения~--- .NET 10. Операционная система~--- Windows 11. Процессор~--- AMD Ryzen 7 5800HS (3.20\,ГГц, 8 физических ядер, 16 логических). Каждая операция выполнялась в профиле \emph{ShortRun}: один запуск (LaunchCount=1) с тремя прогревочными и тремя измеряемыми итерациями; BenchmarkDotNet вычисляет математическое ожидание времени (Mean) и стандартное отклонение (StdDev). Все эксперименты (синтетические разреженные, плотные и реальные матрицы) измерялись в пяти независимых запусках; итоговое значение~--- среднее по пяти запускам с межзапусковым стандартным отклонением.
 
 Визуализация результатов выполнялась с помощью Matplotlib~\footnote{URL: \url{https://matplotlib.org/stable/contents.html} (дата обращения: 15.07.2026).}.
 
@@ -157,53 +160,61 @@ QTreeFSharp~--- это библиотека разреженных вектор�
 
 Сгенерированы синтетические квадратные матрицы трех размеров: $256 \times 256$, $512 \times 512$ и $1024 \times 1024$. Плотность заполнения~--- 1\% и 5\% (доля ненулевых элементов). Матрицы случайным образом заполнялись ненулевыми значениями.
 
-Сравнивались операции: \texttt{map} (отображение), \texttt{mapi} (отображение с индексами), \texttt{get} (доступ к элементу), \texttt{set} (обновление элемента), \texttt{mxm} (умножение матриц).
+Сравнивались операции: \texttt{map} (отображение), \texttt{mapi} (отображение с индексами), \texttt{map2}, \texttt{map2i} (поэлементное отображение двух матриц), \texttt{get} (доступ к элементу), \texttt{set} (обновление элемента), \texttt{mxm} (умножение матриц).
 
 На рис.~\ref{fig:sparse_map_1}--\ref{fig:sparse_get_1} приведены результаты для матриц с плотностью~1\%.
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.92\textwidth]{images/sparse_map_fill1.png}
-    \caption{Время выполнения \texttt{map} на синтетических разреженных матрицах (плотность~1\%). Ось~Y~--- время в микросекундах (логарифмическая шкала).}
-    \label{fig:sparse_map_1}
+    \begin{minipage}[t]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{images/sparse_map_fill1.png}
+        \captionof{figure}{Время выполнения \texttt{map} на синтетических разреженных матрицах (плотность~1\%). Ось~Y~--- время в микросекундах (логарифмическая шкала).}
+        \label{fig:sparse_map_1}
+    \end{minipage}\hfill
+    \begin{minipage}[t]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{images/sparse_mapi_fill1.png}
+        \captionof{figure}{Время выполнения \texttt{mapi} на синтетических разреженных матрицах (плотность~1\%).}
+        \label{fig:sparse_mapi_1}
+    \end{minipage}\hfill
+    \begin{minipage}[t]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{images/sparse_get_fill1.png}
+        \captionof{figure}{Время выполнения \texttt{get} на синтетических разреженных матрицах (плотность~1\%).}
+        \label{fig:sparse_get_1}
+    \end{minipage}
 \end{figure}
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.92\textwidth]{images/sparse_mapi_fill1.png}
-    \caption{Время выполнения \texttt{mapi} на синтетических разреженных матрицах (плотность~1\%).}
-    \label{fig:sparse_mapi_1}
-\end{figure}
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.92\textwidth]{images/sparse_get_fill1.png}
-    \caption{Время выполнения \texttt{get} на синтетических разреженных матрицах (плотность~1\%).}
-    \label{fig:sparse_get_1}
-\end{figure}
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.92\textwidth]{images/sparse_set_fill1.png}
-    \caption{Время выполнения \texttt{set} на синтетических разреженных матрицах (плотность~1\%).}
-    \label{fig:sparse_set_1}
-\end{figure}
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.92\textwidth]{images/sparse_mxm_fill1.png}
-    \caption{Время выполнения \texttt{mxm} на синтетических разреженных матрицах (плотность~1\%).}
-    \label{fig:sparse_mxm_1}
-\end{figure}
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.92\textwidth]{images/sparse_mapi_fill5.png}
-    \caption{Время выполнения \texttt{mapi} на синтетических разреженных матрицах (плотность~5\%).}
-    \label{fig:sparse_mapi_5}
+    \begin{minipage}[t]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{images/sparse_set_fill1.png}
+        \captionof{figure}{Время выполнения \texttt{set} на синтетических разреженных матрицах (плотность~1\%).}
+        \label{fig:sparse_set_1}
+    \end{minipage}\hfill
+    \begin{minipage}[t]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{images/sparse_mxm_fill1.png}
+        \captionof{figure}{Время выполнения \texttt{mxm} на синтетических разреженных матрицах (плотность~1\%).}
+        \label{fig:sparse_mxm_1}
+    \end{minipage}\hfill
+    \begin{minipage}[t]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{images/sparse_mapi_fill5.png}
+        \captionof{figure}{Время выполнения \texttt{mapi} на синтетических разреженных матрицах (плотность~5\%).}
+        \label{fig:sparse_mapi_5}
+    \end{minipage}
 \end{figure}
 
 Результаты для матриц с плотностью~5\% аналогичны по характеру для остальных операций, но абсолютные значения времени выше пропорционально числу ненулевых элементов.
+
+По результатам измерений на разреженных синтетических матрицах:
+\begin{itemize}
+    \item \textbf{\texttt{map}, \texttt{mapi}, \texttt{map2}, \texttt{map2i}, \texttt{mxm}:} COO быстрее quadtree во всех случаях. На матрице $1024\times1024$ с плотностью~1\% COO быстрее в операции \texttt{map} в 51 раз (0.51\,мс против 26.0\,мс), в \texttt{mapi}~--- в 6.2 раза (14.4\,мс против 88.7\,мс), в \texttt{map2}~--- в 9.3 раза (6.1\,мс против 56.3\,мс), в \texttt{map2i}~--- в 7.4 раза (18.3\,мс против 134.8\,мс), в \texttt{mxm}~--- в 25 раз (289\,мс против 7.3\,с). Группировка троек по строкам в \texttt{mxmcoo} даёт перебор только ненулевых пар ($O(n_1 \cdot \bar{n}_2)$), тогда как рекурсивный алгоритм quadtree в таких данных не получает выигрыша от конденсации.
+    \item \textbf{\texttt{get} и \texttt{set}:} quadtree быстрее. На матрице $1024\times1024$ с плотностью~1\% \texttt{get} быстрее в 19 раз (28.7\,мкс против 545\,мкс), \texttt{set}~--- в 428 раз (0.35\,мс против 150\,мс). Ожидаемо: доступ и обновление в дереве выполняются за $O(\log N)$, тогда как COO требует линейного перебора списка троек.
+\end{itemize}
 
 \subsection{Эксперимент~2: Плотные матрицы}
 
@@ -211,92 +222,106 @@ QTreeFSharp~--- это библиотека разреженных вектор�
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.92\textwidth]{images/dense_map.png}
-    \caption{Время выполнения \texttt{map} на плотных матрицах. Ось~Y~--- время в микросекундах (логарифмическая шкала).}
-    \label{fig:dense_map}
+    \begin{minipage}[t]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{images/dense_map.png}
+        \captionof{figure}{Время выполнения \texttt{map} на плотных матрицах. Ось~Y~--- время в микросекундах (логарифмическая шкала).}
+        \label{fig:dense_map}
+    \end{minipage}\hfill
+    \begin{minipage}[t]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{images/dense_mapi.png}
+        \captionof{figure}{Время выполнения \texttt{mapi} на плотных матрицах.}
+        \label{fig:dense_mapi}
+    \end{minipage}\hfill
+    \begin{minipage}[t]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{images/dense_get.png}
+        \captionof{figure}{Время выполнения \texttt{get} на плотных матрицах.}
+        \label{fig:dense_get}
+    \end{minipage}
 \end{figure}
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.92\textwidth]{images/dense_mapi.png}
-    \caption{Время выполнения \texttt{mapi} на плотных матрицах.}
-    \label{fig:dense_mapi}
+    \begin{minipage}[t]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{images/dense_set.png}
+        \captionof{figure}{Время выполнения \texttt{set} на плотных матрицах.}
+        \label{fig:dense_set}
+    \end{minipage}\hfill
+    \begin{minipage}[t]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{images/dense_mxm.png}
+        \captionof{figure}{Время выполнения \texttt{mxm} на плотных матрицах.}
+        \label{fig:dense_mxm}
+    \end{minipage}
 \end{figure}
 
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.92\textwidth]{images/dense_get.png}
-    \caption{Время выполнения \texttt{get} на плотных матрицах.}
-    \label{fig:dense_get}
-\end{figure}
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.92\textwidth]{images/dense_set.png}
-    \caption{Время выполнения \texttt{set} на плотных матрицах.}
-    \label{fig:dense_set}
-\end{figure}
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.92\textwidth]{images/dense_mxm.png}
-    \caption{Время выполнения \texttt{mxm} на плотных матрицах.}
-    \label{fig:dense_mxm}
-\end{figure}
-
-На плотных данных quadtree оказывается быстрее COO во всех измеряемых операциях. В операции \texttt{map} преимущество достигается за счёт того, что рекурсивный обход дерева затрагивает только листья, а разница оказывается небольшой (на размере $256 \times 256$ COO~--- 23.6\,мс, quadtree~--- 20.2\,мс). Операция \texttt{mapi} в COO требует полного перебора всех $N^2$ позиций, поэтому на плотных матрицах COO заметно медленнее: на $256 \times 256$~--- 188\,мс против 19.9\,мс у quadtree (в ~9.5 раза). В операции \texttt{get} quadtree обходит лишь $\log N$ уровней дерева, тогда как COO~--- линейный перебор списка, что даёт разрыв в тысячи раз. Операция \texttt{set} в COO вынуждена пересоздавать отсортированный список при каждом обновлении, из-за чего на $256 \times 256$ время достигает ~400\,с против ~33\,мс у quadtree.
+На плотных данных проявляется специализация форматов. В операциях \texttt{get}, \texttt{set} и \texttt{mxm} quadtree быстрее COO. На матрице $256\times256$ \texttt{get} быстрее в 1080 раз (2.5\,мс против 2.71\,с): COO вынужден выполнять линейный поиск в списке троек для каждого из $N^2$ обращений, тогда как quadtree спускается по $\log N$ уровням. Операция \texttt{set} в COO пересоздаёт отсортированный список при каждом обновлении: на $256\times256$~--- 311\,с против 17.2\,мс у quadtree (в 18\,000 раз). В операции \texttt{mxm} quadtree также быстрее: 1.41\,с против 8.01\,с (в 5.7 раза)~--- плотная структура даёт выигрыш от деления на подматрицы и конденсации. Напротив, в операциях \texttt{map} и \texttt{mapi} COO быстрее: на $256\times256$~--- 13.4\,мс против 19.1\,мс (в 1.4 раза) и 12.7\,мс против 19.3\,мс (в 1.5 раза) соответственно. При полной плотности quadtree вынужден хранить и обходить почти все $N^2$ листьев, что сводит на нет преимущество конденсации, тогда как COO обрабатывает $n=N^2$ троек с меньшими константными накладными расходами.
 
 \subsection{Эксперимент~3: Реальные матрицы}
 
-Для оценки производительности на данных реальной структуры использовались матрицы из коллекции SuiteSparse Matrix Collection~--- крупнейшей базы данных разреженных матриц, применяемых в вычислительной математике. Загружены две матрицы:
+Для оценки производительности на данных реальной структуры использовались матрицы из коллекции SuiteSparse Matrix Collection~--- крупнейшей базы данных разреженных матриц, применяемых в вычислительной математике~\footnote{Дистрибутив матриц загружен из репозитория коллекции: \url{https://github.com/DrTimothyAldenDavis/SuiteSparse} (дата обращения: 19.09.2026).}. Загружены десять матриц различного размера, плотности и происхождения. В перечне указан размер матрицы и число ненулевых элементов в COO-представлении (для симметричных матриц учитываются оба треугольника).
 
 \begin{itemize}
-    \item \textbf{494\_bus}~--- матрица размера $494 \times 494$ с 1620 ненулевыми элементами (из задач моделирования энергосистемы).
-    \item \textbf{arc130}~--- матрица размера $130 \times 130$ с 314 ненулевыми элементами (из аэрокосмической задачи).
+    \item \textbf{bcspwr01}~--- энергосистема, $39\times39$, 170 элементов.
+    \item \textbf{arc130}~--- материаловедение, $130\times130$, 1282 элемента.
+    \item \textbf{bcspwr05}~--- энергосистема, $443\times443$, 2066 элементов.
+    \item \textbf{west0479}~--- химическая инженерия, $479\times479$, 1910 элементов.
+    \item \textbf{494\_bus}~--- энергосистема, $494\times494$, 2160 элементов.
+    \item \textbf{dwt\_992}~--- конструкционные расчёты, $992\times992$, 17\,736 элементов.
+    \item \textbf{jagmesh7}~--- сетка (конечные элементы), $1138\times1138$, 8588 элементов.
+    \item \textbf{bcspwr06}~--- энергосистема, $1454\times1454$, 6754 элемента.
+    \item \textbf{cryg2500}~--- кристаллография, $2500\times2500$, 12\,349 элементов.
+    \item \textbf{zenios}~--- задача оптимизации портфеля, $2873\times2873$, 30\,064 элемента.
 \end{itemize}
 
-Матрицы были загружены в формате Matrix Market и преобразованы в оба внутренних формата: COO и quadtree. Результаты приведены на рис.~\ref{fig:real_summary}--\ref{fig:real_mxm}.
+Матрицы были загружены в формате Matrix Market и преобразованы в оба внутренних формата: COO и quadtree. Для каждой матрицы выполнялась одна и та же выборка из 1000 случайных элементов (общая для COO и quadtree), используемая в операциях \texttt{get} и \texttt{set}. Результаты приведены на рис.~\ref{fig:real_summary}--\ref{fig:real_mxm}.
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.98\textwidth]{images/real_summary.png}
-    \caption{Сводная диаграмма: время выполнения пяти операций на реальных матрицах (494\_bus и arc130). Левая колонка~--- COO, правая~--- quadtree. Ось~Y~--- время в микросекундах (логарифмическая шкала).}
+    \caption{Сводная диаграмма: время выполнения пяти операций на десяти реальных матрицах из коллекции SuiteSparse. Левая колонка~--- COO, правая~--- quadtree. Ось~Y~--- время в микросекундах (логарифмическая шкала).}
     \label{fig:real_summary}
 \end{figure}
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.92\textwidth]{images/real_map.png}
-    \caption{Время выполнения \texttt{map} на реальных матрицах.}
-    \label{fig:real_map}
+    \begin{minipage}[t]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{images/real_map.png}
+        \captionof{figure}{Время выполнения \texttt{map} на реальных матрицах.}
+        \label{fig:real_map}
+    \end{minipage}\hfill
+    \begin{minipage}[t]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{images/real_mapi.png}
+        \captionof{figure}{Время выполнения \texttt{mapi} на реальных матрицах.}
+        \label{fig:real_mapi}
+    \end{minipage}\hfill
+    \begin{minipage}[t]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{images/real_get.png}
+        \captionof{figure}{Время выполнения \texttt{get} на реальных матрицах.}
+        \label{fig:real_get}
+    \end{minipage}
 \end{figure}
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.92\textwidth]{images/real_mapi.png}
-    \caption{Время выполнения \texttt{mapi} на реальных матрицах.}
-    \label{fig:real_mapi}
-\end{figure}
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.92\textwidth]{images/real_get.png}
-    \caption{Время выполнения \texttt{get} на реальных матрицах.}
-    \label{fig:real_get}
-\end{figure}
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.92\textwidth]{images/real_set.png}
-    \caption{Время выполнения \texttt{set} на реальных матрицах.}
-    \label{fig:real_set}
-\end{figure}
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.92\textwidth]{images/real_mxm.png}
-    \caption{Время выполнения \texttt{mxm} на реальных матрицах.}
-    \label{fig:real_mxm}
+    \begin{minipage}[t]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{images/real_set.png}
+        \captionof{figure}{Время выполнения \texttt{set} на реальных матрицах.}
+        \label{fig:real_set}
+    \end{minipage}\hfill
+    \begin{minipage}[t]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{images/real_mxm.png}
+        \captionof{figure}{Время выполнения \texttt{mxm} на реальных матрицах.}
+        \label{fig:real_mxm}
+    \end{minipage}
 \end{figure}
 
 \section{Анализ асимптотической сложности}
@@ -323,7 +348,7 @@ QTreeFSharp~--- это библиотека разреженных вектор�
 
 Здесь $n$~--- число ненулевых элементов матрицы, $T$~--- число узлов дерева (с учётом конденсации), $n_1$, $n_2$~--- числа ненулевых элементов умножаемых матриц.
 
-Ключевые отличия:
+Ключевые отличия.
 
 \begin{itemize}
     \item \textbf{Доступ и обновление.} В COO поиск элемента~--- линейный перебор $O(n)$, поскольку тройки хранятся в плоском списке. В quadtree доступ~--- рекурсивный спуск по дереву за $O(\log N)$, что существенно быстрее для разреженных матриц, где $n \gg \log N$.
@@ -333,34 +358,67 @@ QTreeFSharp~--- это библиотека разреженных вектор�
 
 \section{Результаты}
 
-Сводные результаты измерений на реальных матрицах приведены в табл.~\ref{tab:real_results}.
+Сводные результаты измерений на реальных матрицах приведены в табл.~\ref{tab:real_results}. В каждой ячейке указан формат и во сколько раз он быстрее в соответствующей операции.
 
 \begin{table}[H]
     \centering
-    \caption{Среднее время выполнения операций на реальных матрицах (мкс), усреднённое по 5 независимым запускам (Mean $\pm$ StdDev)}
+    \caption{Сравнение операций на реальных матрицах: формат и кратность ускорения (среднее по 5 независимым запускам)}
     \label{tab:real_results}
-    \begin{tabular}{lrrrr}
+    \footnotesize
+    \begin{tabular}{lrrrrrr}
         \toprule
-        \multirow{2}{*}{Операция} & \multicolumn{2}{c}{494\_bus} & \multicolumn{2}{c}{arc130} \\
-        \cmidrule(lr){2-3} \cmidrule(lr){4-5}
-        & COO & QuadTree & COO & QuadTree \\
+        \multirow{2}{*}{Матрица} & \multirow{2}{*}{$N$} & \multirow{2}{*}{$n$} & \multicolumn{4}{c}{Во сколько раз быстрее формат} \\
+        \cmidrule(lr){4-7}
+        & & & map & mapi & get & set \\
         \midrule
-        map   & $122.4 \pm 17.0$  &   $999.9 \pm 118.3$ &  $136.6 \pm 25.6$  &   $205.0 \pm 8.2$  \\
-        mapi  &  $159\,207 \pm 12\,574$  &  $16\,864 \pm 507$  &  $13\,956 \pm 379$  &  $1327 \pm 21$     \\
-        get   & $1826 \pm 130$    &  $27.9 \pm 0.85$    & $1455 \pm 63.5$    &  $21.2 \pm 2.3$   \\
-        set   & $49\,888 \pm 4130$ &  $459.4 \pm 87.7$  & $53\,340 \pm 2320$ &  $354.9 \pm 9.2$  \\
-        mxm   & $11\,813 \pm 350$ & $384\,799 \pm 35\,900$ & $173\,456 \pm 9290$ & $45\,128 \pm 8480$ \\
+        bcspwr01  &  39  &   170 & COO $\times$ 6.9 & COO $\times$ 4.4 & Quadtree $\times$ 9   & Quadtree $\times$ 16 \\
+        arc130    & 130  &  1282 & COO $\times$ 6.4 & COO $\times$ 6.3 & Quadtree $\times$ 53  & Quadtree $\times$ 84 \\
+        bcspwr05  & 443  &  2066 & COO $\times$ 23  & COO $\times$ 6.3 & Quadtree $\times$ 73  & Quadtree $\times$ 105 \\
+        west0479  & 479  &  1910 & COO $\times$ 20  & COO $\times$ 5.8 & Quadtree $\times$ 60  & Quadtree $\times$ 94 \\
+        494\_bus  & 494  &  2160 & COO $\times$ 20  & COO $\times$ 6.0 & Quadtree $\times$ 71  & Quadtree $\times$ 110 \\
+        dwt\_992  & 992  & 17736 & COO $\times$ 4.8 & COO $\times$ 5.8 & Quadtree $\times$ 507 & Quadtree $\times$ 1229 \\
+        jagmesh7  & 1138 &  8588 & COO $\times$ 11  & COO $\times$ 5.2 & Quadtree $\times$ 206 & Quadtree $\times$ 402 \\
+        bcspwr06  & 1454 &  6754 & COO $\times$ 28  & COO $\times$ 5.0 & Quadtree $\times$ 131 & Quadtree $\times$ 255 \\
+        cryg2500  & 2500 & 12349 & COO $\times$ 16  & COO $\times$ 4.4 & Quadtree $\times$ 166 & Quadtree $\times$ 462 \\
+        zenios    & 2873 & 30064 & COO $\times$ 14  & COO $\times$ 5.3 & Quadtree $\times$ 370 & Quadtree $\times$ 2049 \\
         \bottomrule
     \end{tabular}
 \end{table}
 
-Основные наблюдения:
+Операция \texttt{mxm} вынесена в отдельную табл.~\ref{tab:real_mxm}, поскольку её результат менее однозначен: на 9 из 10 матриц быстрее COO, и лишь на матрице arc130 quadtree продемонстрировал сопоставимое время.
+
+\begin{table}[H]
+    \centering
+    \caption{Операция \texttt{mxm} на реальных матрицах: среднее время (мс) и соотношение (среднее по 5 запускам)}
+    \label{tab:real_mxm}
+    \footnotesize
+    \begin{tabular}{lrrr}
+        \toprule
+        \multirow{2}{*}{Матрица} & \multicolumn{2}{c}{Среднее время, мс} & \multirow{2}{*}{COO быстрее в ... раз} \\
+        \cmidrule(lr){2-3}
+        & COO & QuadTree & \\
+        \midrule
+        bcspwr01  &  0.272 &  1.76  & 6.5 \\
+        arc130    & 51.5   & 46.1   & 0.9 (Quadtree в 1.1 раза) \\
+        bcspwr05  &  9.60  & 392    & 41 \\
+        west0479  & 11.0   & 401    & 37 \\
+        494\_bus  &  8.85  & 382    & 43 \\
+        dwt\_992  & 289    & 2595   & 9.0 \\
+        jagmesh7  & 79.6   & 2103   & 26 \\
+        bcspwr06  & 47.2   & 3198   & 68 \\
+        cryg2500  & 98.5   & 7920   & 80 \\
+        zenios    & 480    & 33\,096 & 69 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+Основные наблюдения.
 
 \begin{enumerate}
-    \item \textbf{Операции \texttt{map} и \texttt{mapi}.} COO оказывается быстрее quadtree при операции \texttt{map}: на матрице 494\_bus~--- в 8 раз, на arc130~--- в 1,5 раз. Это согласуется с табл.~\ref{tab:complexity}: COO обходит только список троек ($O(n)$), тогда как quadtree обходит все узлы дерева ($O(T)$). Однако для операции \texttt{mapi} quadtree также оказывается быстрее: на 494\_bus~--- примерно в 9 раз, на arc130~--- примерно в 10,5 раза. Причина в том, что \texttt{mapi} должна обеспечивать общий вид~--- вызывать функцию отображения для всех $N^2$ позиций матрицы (включая пустые), что для COO означает полный перебор $O(N^2)$, тогда как quadtree обходит только узлы с данными ($O(T)$).
-    \item \textbf{Операция \texttt{get}.} Quadtree значительно быстрее: на 494\_bus~--- в 65 раз, на arc130~--- в 69 раз. Это соответствует теоретическим ожиданиям: quadtree выполняет доступ за $O(\log N)$ (табл.~\ref{tab:complexity}), тогда как COO~--- линейный перебор за $O(n)$.
-    \item \textbf{Операция \texttt{set}.} Quadtree быстрее: на 494\_bus~--- в 109 раз, на arc130~--- в 150 раз. Причина~--- аналогична операции \texttt{get}: обновление в quadtree~--- это $O(\log N)$, тогда как в COO~--- $O(n)$ (вставка в отсортированный список).
-    \item \textbf{Умножение матриц (\texttt{mxm}).} Результат зависит от структуры матрицы. На 494\_bus COO быстрее в 33 раза, на arc130~--- quadtree быстрее в 3,8 раза. Алгоритм \texttt{mxmcoo} выполняет группировку по строкам и перебор только ненулевых пар ($O(n_1 \cdot \bar{n_2})$), что эффективно для матриц с умеренной плотностью. Quadtree использует рекурсивный divide-and-conquer алгоритм с восемью умножениями подматриц, что хорошо работает для матриц с чёткой блочной структурой.
+    \item \textbf{Операции \texttt{map} и \texttt{mapi}.} COO быстрее quadtree на всех десяти матрицах: в \texttt{map}~--- в 5--28 раз, в \texttt{mapi}~--- в 4--6 раз. Причина~--- в структуре данных: COO обрабатывает только $n$ троек ($O(n)$), тогда как quadtree обходит все узлы дерева ($O(T)$), а в случае \texttt{mapi} дерево и вовсе вынуждено спускаться по всем ветвям. При малых размерах матриц, когда $T$ несущественно меньше $N^2$, накладные расходы рекурсии в quadtree перевешивают теоретическое преимущество.
+    \item \textbf{Операция \texttt{get}.} Quadtree значительно быстрее: от 9 раз (bcspwr01) до 507 раз (dwt\_992). Это соответствует ожиданиям: quadtree выполняет доступ за $O(\log N)$ (табл.~\ref{tab:complexity}), тогда как COO~--- линейный перебор за $O(n)$.
+    \item \textbf{Операция \texttt{set}.} Quadtree быстрее во всех случаях, от 16 до 2049 раз. Обновление в quadtree~--- это $O(\log N)$, тогда как в COO каждое обновление пересоздаёт отсортированный список троек~--- $O(n)$.
+    \item \textbf{Умножение матриц (\texttt{mxm}).} COO быстрее на 9 из 10 матриц (в 6.5--80 раз), и лишь на маленькой матрице arc130 quadtree примерно на 10\% быстрее. Разрежённый алгоритм \texttt{mxmcoo} выполняет группировку по строкам и перебор только ненулевых пар ($O(n_1 \cdot \bar{n}_2)$), что эффективно для реальных матриц с умеренной плотностью и структурой «почти без блочности». Рекурсивный алгоритм quadtree ($O(N^{\log_2 8})$) хорошо работал на плотных матрицах, но на разреженных реальных данных не получает достаточного выигрыша от конденсации.
 \end{enumerate}
 
 \section{Заключение}
@@ -370,10 +428,10 @@ QTreeFSharp~--- это библиотека разреженных вектор�
 \begin{itemize}
     \item Реализован модуль COO с операциями доступа, обновления, отображения и умножения матриц в формате Coordinate List.
     \item Реализованы мостовые функции для конвертации между форматами COO и quadtree.
-    \item Написаны 133 модульных теста (27~--- для модуля COO), все тесты проходят.
-    \item Разработана инфраструктура измерения производительности на базе BenchmarkDotNet с методологией повторных измерений (несколько независимых запусков для оценки воспроизводимости).
-    \item Проведён сравнительный анализ производительности форматов COO и quadtree на синтетических и реальных данных.
-    \item Установлено, что COO эффективнее для операций \texttt{map} и \texttt{mxm} (при определённых условиях), тогда как quadtree эффективнее для \texttt{get}, \texttt{set} и \texttt{mapi} за счёт структуры дерева, обеспечивающей $O(\log N)$ доступ и обход только узлов с данными.
+    \item Написаны 188 модульных тестов (39~--- для модуля COO), все тесты проходят.
+    \item Разработана инфраструктура измерения производительности на базе BenchmarkDotNet с методологией повторных измерений (5 независимых запусков для оценки воспроизводимости).
+    \item Проведён сравнительный анализ производительности форматов COO и quadtree на синтетических (разреженных и плотных) и десяти реальных матрицах из коллекции SuiteSparse.
+    \item Установлено, что COO эффективнее для операций \texttt{map}, \texttt{mapi} и \texttt{mxm} (на реальных матрицах COO выигрывает умножение на 9 из 10 матриц), тогда как quadtree на порядки эффективнее для \texttt{get} и \texttt{set} благодаря доступу за $O(\log N)$ в отличие от линейного перебора $O(n)$ в COO.
 \end{itemize}
 
 \begin{thebibliography}{99}
