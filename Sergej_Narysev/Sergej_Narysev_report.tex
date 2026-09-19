@@ -22,11 +22,13 @@
 \preauthor{\begin{center}\normalsize}
 \postauthor{\par\end{center}\vspace{-1.8cm}}
 
-\usepackage{hyperref}
+\usepackage[hidelinks]{hyperref}
 \usepackage{bookmark}
 \usepackage{csquotes}
 \usepackage{booktabs}
 \usepackage{multirow}
+
+\emergencystretch=2em
 
 \title{Сравнение форматов хранения разреженных матриц: COO и QuadTree}
 
@@ -56,7 +58,7 @@
 
 В проекте QTreeFSharp~\footnote{URL: \url{https://github.com/Lamagraph/QTreeFSharp} (дата обращения: 15.07.2026).} используется альтернативный подход~--- дерево квадрантов (quadtree). Матрица представляется бинарным деревом, каждый внутренний узел которого содержит четыре поддерева, соответствующих четвертям матрицы. Если все четыре поддерева одинаковы, они сжимаются в один лист. Такая структура естественным образом обеспечивает разреженное хранение и позволяет эффективно выполнять рекурсивные операции (умножение матриц, отображение, свёртку), поскольку операция применяется только к занятым поддеревьям.
 
-QTreeFSharp~--- это библиотека разреженных векторов и матриц на языке F\#~\footnote{URL: \url{https://en.wikibooks.org/wiki/F_Sharp_Programming} (дата обращения: 15.07.2026).}, реализующая базовые операции линейной алгебры и алгоритмы анализа графов в парадигме GraphBLAS~--- модели вычислений, в которой линейная алгебра используется как язык для работы с графами.
+QTreeFSharp~--- это библиотека разреженных векторов и матриц на языке F\#~\footnote{URL: \url{https://en.wikibooks.org/wiki/F_Sharp_Programming} (дата обращения: 15.07.2026).}, реализующая базовые операции линейной алгебры и алгоритмы анализа графов в парадигме GraphBLAS~\footnote{URL: \url{https://graphblas.github.io/} (дата обращения: 15.07.2026). }~--- модели вычислений, в которой линейная алгебра используется как язык для работы с графами.
 
 \section{Постановка задачи}
 
@@ -371,16 +373,16 @@ QTreeFSharp~--- это библиотека разреженных вектор�
         \cmidrule(lr){4-7}
         & & & map & mapi & get & set \\
         \midrule
-        bcspwr01  &  39  &   170 & COO $\times$ 6.9 & COO $\times$ 4.4 & Quadtree $\times$ 9   & Quadtree $\times$ 16 \\
-        arc130    & 130  &  1282 & COO $\times$ 6.4 & COO $\times$ 6.3 & Quadtree $\times$ 53  & Quadtree $\times$ 84 \\
-        bcspwr05  & 443  &  2066 & COO $\times$ 23  & COO $\times$ 6.3 & Quadtree $\times$ 73  & Quadtree $\times$ 105 \\
-        west0479  & 479  &  1910 & COO $\times$ 20  & COO $\times$ 5.8 & Quadtree $\times$ 60  & Quadtree $\times$ 94 \\
-        494\_bus  & 494  &  2160 & COO $\times$ 20  & COO $\times$ 6.0 & Quadtree $\times$ 71  & Quadtree $\times$ 110 \\
-        dwt\_992  & 992  & 17736 & COO $\times$ 4.8 & COO $\times$ 5.8 & Quadtree $\times$ 507 & Quadtree $\times$ 1229 \\
-        jagmesh7  & 1138 &  8588 & COO $\times$ 11  & COO $\times$ 5.2 & Quadtree $\times$ 206 & Quadtree $\times$ 402 \\
-        bcspwr06  & 1454 &  6754 & COO $\times$ 28  & COO $\times$ 5.0 & Quadtree $\times$ 131 & Quadtree $\times$ 255 \\
-        cryg2500  & 2500 & 12349 & COO $\times$ 16  & COO $\times$ 4.4 & Quadtree $\times$ 166 & Quadtree $\times$ 462 \\
-        zenios    & 2873 & 30064 & COO $\times$ 14  & COO $\times$ 5.3 & Quadtree $\times$ 370 & Quadtree $\times$ 2049 \\
+        bcspwr01  &  39  &   170 & COO $\times$ 6.8 & COO $\times$ 4.4 & Quadtree $\times$ 8.9   & Quadtree $\times$ 16.1 \\
+        arc130    & 130  &  1282 & COO $\times$ 6.5 & COO $\times$ 6.3 & Quadtree $\times$ 53.3  & Quadtree $\times$ 83.9 \\
+        bcspwr05  & 443  &  2066 & COO $\times$ 23.5 & COO $\times$ 6.3 & Quadtree $\times$ 73.1  & Quadtree $\times$ 104.8 \\
+        west0479  & 479  &  1910 & COO $\times$ 20.4 & COO $\times$ 5.8 & Quadtree $\times$ 59.9  & Quadtree $\times$ 94.5 \\
+        494\_bus  & 494  &  2160 & COO $\times$ 20.0 & COO $\times$ 6.0 & Quadtree $\times$ 71.0  & Quadtree $\times$ 109.8 \\
+        dwt\_992  & 992  & 17736 & COO $\times$ 4.8 & COO $\times$ 5.8 & Quadtree $\times$ 507.2 & Quadtree $\times$ 1228.7 \\
+        jagmesh7  & 1138 &  8588 & COO $\times$ 10.9 & COO $\times$ 5.2 & Quadtree $\times$ 206.3 & Quadtree $\times$ 401.6 \\
+        bcspwr06  & 1454 &  6754 & COO $\times$ 27.5 & COO $\times$ 5.0 & Quadtree $\times$ 131.5 & Quadtree $\times$ 254.8 \\
+        cryg2500  & 2500 & 12349 & COO $\times$ 15.6 & COO $\times$ 4.4 & Quadtree $\times$ 166.3 & Quadtree $\times$ 461.5 \\
+        zenios    & 2873 & 30064 & COO $\times$ 14.2 & COO $\times$ 5.3 & Quadtree $\times$ 369.8 & Quadtree $\times$ 2049.0 \\
         \bottomrule
     \end{tabular}
 \end{table}
@@ -398,16 +400,16 @@ QTreeFSharp~--- это библиотека разреженных вектор�
         \cmidrule(lr){2-3}
         & COO & QuadTree & \\
         \midrule
-        bcspwr01  &  0.272 &  1.76  & 6.5 \\
-        arc130    & 51.5   & 46.1   & 0.9 (Quadtree в 1.1 раза) \\
-        bcspwr05  &  9.60  & 392    & 41 \\
-        west0479  & 11.0   & 401    & 37 \\
-        494\_bus  &  8.85  & 382    & 43 \\
-        dwt\_992  & 289    & 2595   & 9.0 \\
-        jagmesh7  & 79.6   & 2103   & 26 \\
-        bcspwr06  & 47.2   & 3198   & 68 \\
-        cryg2500  & 98.5   & 7920   & 80 \\
-        zenios    & 480    & 33\,096 & 69 \\
+        bcspwr01  &   0.27 &      1.76 & 6.5 \\
+        arc130    &  51.54 &     46.07 & 0.9 (Quadtree в 1.1 раза) \\
+        bcspwr05  &   9.60 &    391.89 & 40.8 \\
+        west0479  &  10.98 &    401.12 & 36.5 \\
+        494\_bus  &   8.85 &    382.03 & 43.2 \\
+        dwt\_992  & 289.10 &   2595.18 & 9.0 \\
+        jagmesh7  &  79.59 &   2102.57 & 26.4 \\
+        bcspwr06  &  47.24 &   3198.17 & 67.7 \\
+        cryg2500  &  98.46 &   7919.86 & 80.4 \\
+        zenios    & 480.47 & 33\,095.92 & 68.9 \\
         \bottomrule
     \end{tabular}
 \end{table}
